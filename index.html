@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Morde</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background:#090a09;
+  color:#f2f3f0;
+  font-family:Inter,system-ui,sans-serif;
+  display:flex;
+  justify-content:center;
+}
+
+main{
+  width:min(760px,calc(100% - 28px));
+  padding:55px 0;
+}
+
+h1{
+  margin:0 0 8px;
+  font-size:48px;
+  letter-spacing:-.05em;
+}
+
+.subtitle{
+  margin:0 0 28px;
+  color:#858a82;
+  font-size:14px;
+}
+
+.box{
+  border:1px solid #292c28;
+  background:#111310;
+  border-radius:20px;
+  overflow:hidden;
+}
+
+.tabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  padding:6px;
+  gap:5px;
+  border-bottom:1px solid #292c28;
+  background:#0d0e0c;
+}
+
+.tab{
+  height:44px;
+  border:0;
+  border-radius:12px;
+  background:transparent;
+  color:#777c75;
+  font-weight:600;
+  cursor:pointer;
+}
+
+.tab.active{
+  background:#e2ffd5;
+  color:#11140f;
+}
+
+.content{
+  padding:24px;
+}
+
+label{
+  display:block;
+  margin-bottom:9px;
+  color:#8d9289;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+
+textarea{
+  width:100%;
+  min-height:170px;
+  resize:vertical;
+  border:1px solid #292c28;
+  border-radius:15px;
+  outline:none;
+  padding:17px;
+  background:#0a0b0a;
+  color:#f2f3f0;
+  font:15px/1.7 monospace;
+}
+
+textarea:focus{
+  border-color:#50564c;
+}
+
+.buttons{
+  display:flex;
+  gap:8px;
+  margin:12px 0 25px;
+}
+
+.action,.copy{
+  border:1px solid #292c28;
+  border-radius:9px;
+  background:#171916;
+  color:#c4c9c1;
+  cursor:pointer;
+}
+
+.action{
+  padding:9px 14px;
+}
+
+.result{
+  position:relative;
+}
+
+pre{
+  margin:0;
+  min-height:120px;
+  padding:18px 50px 18px 18px;
+  border:1px solid #292c28;
+  border-radius:15px;
+  background:#090a09;
+  color:#e2ffd5;
+  white-space:pre-wrap;
+  word-break:break-all;
+  font:15px/1.8 monospace;
+}
+
+.copy{
+  position:absolute;
+  top:9px;
+  right:9px;
+  width:38px;
+  height:38px;
+}
+
+@media(max-width:600px){
+  main{padding:35px 0}
+  h1{font-size:40px}
+  .content{padding:18px}
+}
+</style>
+</head>
+
+<body>
+
+<main>
+
+<h1>Morde</h1>
+
+<p class="subtitle">Nhập chữ hoặc mã để dịch.</p>
+
+<section class="box">
+
+<div class="tabs">
+<button id="encodeTab" class="tab active" onclick="setMode('encode')">
+Mã hóa
+</button>
+
+<button id="decodeTab" class="tab" onclick="setMode('decode')">
+Giải mã
+</button>
+</div>
+
+<div class="content">
+
+<label id="inputLabel">Nhập chữ</label>
+
+<textarea id="input" spellcheck="false"
+placeholder="Nhập chữ cần mã hóa..."></textarea>
+
+<div class="buttons">
+<button class="action" onclick="example()">Thử</button>
+<button class="action" onclick="clearAll()">Xóa</button>
+</div>
+
+<label id="outputLabel">Mã</label>
+
+<div class="result">
+<pre id="output"></pre>
+<button class="copy" onclick="copyResult()" title="Sao chép">⧉</button>
+</div>
+
+</div>
+</section>
+
+</main>
+
+<script>
+const CHARS="10-_.";
+
+/* Chuyển số thành mã */
+function numberToCode(n){
+  if(n===0n)return CHARS[0];
+
+  let result="";
+
+  while(n>0n){
+    result=CHARS[Number(n%5n)]+result;
+    n/=5n;
+  }
+
+  return result;
+}
+
+/* Chuyển mã thành số */
+function codeToNumber(code){
+  let n=0n;
+
+  for(const char of code){
+    const index=CHARS.indexOf(char);
+    if(index<0)throw new Error();
+
+    n=n*5n+BigInt(index);
+  }
+
+  return n;
+}
+
+/* Mã hóa */
+function encode(text){
+  if(!text)return "";
+
+  const bytes=new TextEncoder().encode(text);
+  let n=0n;
+
+  for(const byte of bytes)
+    n=(n<<8n)|BigInt(byte);
+
+  return numberToCode(BigInt(bytes.length))+"."+numberToCode(n);
+}
+
+/* Giải mã */
+function decode(code){
+  if(!code)return "";
+
+  for(const char of code)
+    if(!CHARS.includes(char))
+      return "Mã không hợp lệ";
+
+  const dot=code.indexOf(".");
+
+  if(dot<1 || code.indexOf(".",dot+1)!==-1)
+    return "Mã không hợp lệ";
+
+  const lengthPart=code.slice(0,dot);
+  const dataPart=code.slice(dot+1);
+
+  if(!dataPart)return "Mã không hợp lệ";
+
+  try{
+    const length=Number(codeToNumber(lengthPart));
+    let n=codeToNumber(dataPart);
+
+    const bytes=new Uint8Array(length);
+
+    for(let i=length-1;i>=0;i--){
+      bytes[i]=Number(n&255n);
+      n>>=8n;
+    }
+
+    return new TextDecoder().decode(bytes);
+  }catch{
+    return "Mã không hợp lệ";
+  }
+}
+
+const input=document.getElementById("input");
+const output=document.getElementById("output");
+const encodeTab=document.getElementById("encodeTab");
+const decodeTab=document.getElementById("decodeTab");
+const inputLabel=document.getElementById("inputLabel");
+const outputLabel=document.getElementById("outputLabel");
+
+let mode="encode";
+
+function update(){
+  output.textContent=
+    mode==="encode"
+    ? encode(input.value)
+    : decode(input.value);
+}
+
+function setMode(newMode){
+  mode=newMode;
+
+  encodeTab.classList.toggle("active",mode==="encode");
+  decodeTab.classList.toggle("active",mode==="decode");
+
+  input.value="";
+  output.textContent="";
+
+  if(mode==="encode"){
+    inputLabel.textContent="Nhập chữ";
+    outputLabel.textContent="Mã";
+    input.placeholder="Nhập chữ cần mã hóa...";
+  }else{
+    inputLabel.textContent="Nhập mã";
+    outputLabel.textContent="Chữ";
+    input.placeholder="Nhập mã...";
+  }
+}
+
+function example(){
+  input.value="Xin chào";
+  update();
+}
+
+function clearAll(){
+  input.value="";
+  output.textContent="";
+}
+
+async function copyResult(){
+  if(output.textContent)
+    await navigator.clipboard.writeText(output.textContent);
+}
+
+input.addEventListener("input",update);
+</script>
+
+</body>
+</html>
